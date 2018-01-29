@@ -1,9 +1,6 @@
 package javache;
 
-import javache.http.HttpRequest;
-import javache.http.HttpRequestImpl;
-import javache.http.HttpResponse;
-import javache.http.HttpResponseImpl;
+import javache.http.*;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -17,11 +14,13 @@ import java.util.HashMap;
 public class RequestHandler {
     private HttpRequest httpRequest;
     private HttpResponse httpResponse;
+    private HttpSession httpSession;
     private HashMap<String, String> supportedContentTypes;
 
-    public RequestHandler() {
+    public RequestHandler(HttpSession httpSession) {
         this.supportedContentTypes = new HashMap<>();
         this.seedSupportedContentTypes();
+        this.httpSession = httpSession;
     }
 
     public byte[] handleRequest(String requestContent) {
@@ -39,20 +38,20 @@ public class RequestHandler {
         byte[] fileByteData = null;
         try {
             String returnPath = "";
-            if (!this.httpRequest.isResource()) {
+            if (!this.httpRequest.getRequestUrl().contains(".")) {
                 returnPath = WebConstraints.RESOURCES_PATH + WebConstraints.PAGES_PATH + requestResource + ".html";
             } else {
                 returnPath = WebConstraints.RESOURCES_PATH + WebConstraints.ASSETS_PATH + requestResource;
             }
 
             fileByteData = Files.readAllBytes(Paths.get(returnPath));
-            this.httpResponse.setStatusCode(WebConstraints.OK_STATUS_CODE);
+            this.httpResponse.setStatusCode(HttpStatus.Ok);
         } catch (NoSuchFileException e) {
-            this.httpResponse.setStatusCode(WebConstraints.NOT_MODIFIED_STATUS_CODE);
+            this.httpResponse.setStatusCode(HttpStatus.NotFound);
         } catch (AccessDeniedException e) {
-            this.httpResponse.setStatusCode(WebConstraints.UNAUTHORIZED_STATUS_CODE);
+            this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
         } catch (IOException e) {
-            this.httpResponse.setStatusCode(WebConstraints.INTERNAL_SERVER_ERROR_STATUS_CODE);
+            this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
             e.printStackTrace();
         }
         return fileByteData;
@@ -86,6 +85,6 @@ public class RequestHandler {
     }
 
     private boolean verifyResourceStatus() {
-        return this.httpResponse.getStatusCode() == 200;
+        return this.httpResponse.getStatusCode().getStatusCode() == 200;
     }
 }

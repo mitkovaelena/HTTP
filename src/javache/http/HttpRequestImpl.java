@@ -1,75 +1,104 @@
 package javache.http;
 
-import javache.WebConstraints;
-
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 public class HttpRequestImpl implements HttpRequest {
     private String method;
-    private String requestUrl;
-    private Map<String, String> headers;
-    private Map<String, String> bodyParameters;
-    private boolean isResource;
 
-    public HttpRequestImpl(String requestString) {
-        this.method = this.extractRequestMethod(requestString);
-        this.requestUrl = this.extractRequestUrl(requestString);
-        this.headers = this.extractHeaders(requestString);
-        this.bodyParameters = this.extractBodyParameters(requestString);
+    private String requestUrl;
+
+    private HashMap<String, String> headers;
+
+    private HashMap<String, String> bodyParameters;
+
+    private HashMap<String, String> cookies;
+
+    public HttpRequestImpl(String requestContent) {
+        this.initMethod(requestContent);
+        this.initRequestUrl(requestContent);
+        this.initHeaders(requestContent);
+        this.initBodyParameters(requestContent);
+        this.initCookies();
     }
 
-    private Map<String,String> extractBodyParameters(String requestString) {
-        Map<String, String> bodyParameters = new HashMap<>();
-        String params = requestString.substring(requestString.indexOf("\r\n\r\n"));
-        if(!params.trim().isEmpty()) {
-            for (String pairStr : params.split("&")) {
-                String[] pair = pairStr.split("=");
-                bodyParameters.put(pair[0], pair[1]);
+    private void initCookies() {
+        this.cookies = new HashMap<>();
+        if (!this.headers.containsKey("Cookie")) {
+            return;
+        }
+
+        String cookieHeader = this.headers.get("Cookie");
+        String[] cookiePairs = cookieHeader.split("; ");
+        for (String cookiePair : cookiePairs) {
+            String[] pair = cookiePair.split("=");
+            this.cookies.put(pair[0], pair[1]);
+        }
+    }
+
+    private void initMethod(String requestContent) {
+        this.setMethod(requestContent.split("\\s")[0]);
+    }
+
+    private void initRequestUrl(String requestContent) {
+        this.setRequestUrl(requestContent.split("\\s")[1]);
+    }
+
+    private void initHeaders(String requestContent) {
+        this.headers = new HashMap<>();
+
+        List<String> requestParams = Arrays.asList(
+                requestContent.split("\\r\\n"));
+
+        int i = 1;
+
+        while(i < requestParams.size() && requestParams.get(i).length() > 0) {
+            String[] headerKeyValuePair = requestParams.get(i).split("\\:\\s");
+
+            this.addHeader(headerKeyValuePair[0], headerKeyValuePair[1]);
+
+            i++;
+        }
+    }
+
+    private void initBodyParameters(String requestContent) {
+        if(this.getMethod().equals("POST")) {
+            this.bodyParameters = new HashMap<>();
+
+            List<String> requestParams = Arrays.asList(requestContent.split("\\r\\n"));
+
+            if(requestParams.size() > this.headers.size() + 2) {
+                List<String> bodyParams = Arrays.asList(requestParams.get(this.headers.size() + 2).split("\\&"));
+
+                for (int i = 0; i < bodyParams.size(); i++) {
+                    String[] bodyKeyValuePair = bodyParams.get(i).split("\\=");
+
+                    try {
+                        this.addBodyParameter(bodyKeyValuePair[0], URLDecoder.decode(bodyKeyValuePair[1], "UTF-8"));
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
-        return bodyParameters;
-    }
-
-    private Map<String,String> extractHeaders(String requestString) {
-        Map<String, String> headers = new HashMap<>();
-        String[] params = requestString.split("\r\n\r\n")[0].split("\r\n");
-
-        for(int i = 1;  i < params.length; i++){
-            String[] pair = params[i].split(": ");
-            headers.put(pair[0], pair[1]);
-        }
-        return headers;
-    }
-
-    private String extractRequestUrl(String requestContent) {
-        if(requestContent.split("\\s").length > 1) {
-            String resourceUrl = requestContent.split("\\s")[1];
-            this.isResource = resourceUrl.contains(".");
-            return resourceUrl;
-        }
-
-        this.isResource = false;
-        return requestContent;
-    }
-
-    private String extractRequestMethod(String requestContent) {
-        if (requestContent.split("\\s").length > 0) {
-            return requestContent.split("\\s")[0];
-        }
-
-        return requestContent;
     }
 
     @Override
-    public Map<String, String> getHeaders() {
+    public HashMap<String, String> getHeaders() {
         return this.headers;
     }
 
     @Override
-    public Map<String, String> getBodyParameters() {
+    public HashMap<String, String> getBodyParameters() {
         return this.bodyParameters;
+    }
+
+    @Override
+    public HashMap<String, String> getCookies() {
+        return this.cookies;
     }
 
     @Override
@@ -100,10 +129,5 @@ public class HttpRequestImpl implements HttpRequest {
     @Override
     public void addBodyParameter(String parameter, String value) {
         this.bodyParameters.putIfAbsent(parameter, value);
-    }
-
-    @Override
-    public boolean isResource() {
-        return this.isResource;
     }
 }

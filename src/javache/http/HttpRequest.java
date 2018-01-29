@@ -1,12 +1,14 @@
 package javache.http;
 
 import java.util.HashMap;
-import java.util.Map;
 
 public interface HttpRequest {
-    Map<String, String> getHeaders();
 
-    Map<String, String> getBodyParameters();
+    HashMap<String, String> getHeaders();
+
+    HashMap<String, String> getBodyParameters();
+
+    HashMap<String, String> getCookies();
 
     String getMethod();
 
@@ -19,6 +21,4 @@ public interface HttpRequest {
     void addHeader(String header, String value);
 
     void addBodyParameter(String parameter, String value);
-
-    boolean isResource();
 }
