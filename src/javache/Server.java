@@ -7,7 +7,7 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.FutureTask;
 
 public class Server {
-    private static final int SOCKET_TIMEOUT_MILLISECONDS = 10000;
+    private static final int SOCKET_TIMEOUT_MILLISECONDS = 1000;
 
     private int port;
     private ServerSocket server;

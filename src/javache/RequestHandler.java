@@ -1,5 +1,10 @@
 package javache;
 
+import javache.http.HttpRequest;
+import javache.http.HttpRequestImpl;
+import javache.http.HttpResponse;
+import javache.http.HttpResponseImpl;
+
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.file.AccessDeniedException;
@@ -10,17 +15,58 @@ import java.util.Date;
 import java.util.HashMap;
 
 public class RequestHandler {
-    private String resourceExtension;
-    private int resourceSize;
-    private String resourceStatus;
-    private HashMap<String, String> responseLines;
+    private HttpRequest httpRequest;
+    private HttpResponse httpResponse;
     private HashMap<String, String> supportedContentTypes;
 
     public RequestHandler() {
         this.supportedContentTypes = new HashMap<>();
-        this.responseLines = new HashMap<>();
         this.seedSupportedContentTypes();
-        this.seedResponseLines();
+    }
+
+    public byte[] handleRequest(String requestContent) {
+        this.httpRequest = new HttpRequestImpl(requestContent);
+        this.httpResponse = new HttpResponseImpl();
+
+        byte[] resourceData = this.getResource(this.httpRequest.getRequestUrl());
+        this.httpResponse.setContent(resourceData);
+        this.setResponseHeaders();
+
+        return httpResponse.getBytes();
+    }
+
+    private byte[] getResource(String requestResource) {
+        byte[] fileByteData = null;
+        try {
+            String returnPath = "";
+            if (!this.httpRequest.isResource()) {
+                returnPath = WebConstraints.RESOURCES_PATH + WebConstraints.PAGES_PATH + requestResource + ".html";
+            } else {
+                returnPath = WebConstraints.RESOURCES_PATH + WebConstraints.ASSETS_PATH + requestResource;
+            }
+
+            fileByteData = Files.readAllBytes(Paths.get(returnPath));
+            this.httpResponse.setStatusCode(WebConstraints.OK_STATUS_CODE);
+        } catch (NoSuchFileException e) {
+            this.httpResponse.setStatusCode(WebConstraints.NOT_MODIFIED_STATUS_CODE);
+        } catch (AccessDeniedException e) {
+            this.httpResponse.setStatusCode(WebConstraints.UNAUTHORIZED_STATUS_CODE);
+        } catch (IOException e) {
+            this.httpResponse.setStatusCode(WebConstraints.INTERNAL_SERVER_ERROR_STATUS_CODE);
+            e.printStackTrace();
+        }
+        return fileByteData;
+    }
+
+    private void setResponseHeaders() {
+        this.httpResponse.addHeader(WebConstraints.SERVER_HEADER, WebConstraints.SERVER_NAME_AND_VERSION);
+        this.httpResponse.addHeader(WebConstraints.DATE_HEADER, new Date().toString());
+
+        if (this.verifyResourceStatus()) {
+            this.httpResponse.addHeader(WebConstraints.CONTENT_TYPE_HEADER, this.getContentType(this.httpRequest.getRequestUrl()));
+            this.httpResponse.addHeader(WebConstraints.CONTENT_DISPOSITION_HEADER, WebConstraints.CONTENT_DISPOSITION_VALUE_INLINE);
+            this.httpResponse.addHeader(WebConstraints.CONTENT_LENGTH_HEADER, String.valueOf(this.httpResponse.getContent().length));
+        }
     }
 
     private void seedSupportedContentTypes() {
@@ -30,125 +76,16 @@ public class RequestHandler {
         this.supportedContentTypes.put("html", "text/html");
     }
 
-    private void seedResponseLines() {
-        this.responseLines.put("ok", "HTTP/1.1 200 OK");
-        this.responseLines.put("found", "HTTP/1.1 302 Found");
-        this.responseLines.put("bad_request", "HTTP/1.1 400 Bad Request");
-        this.responseLines.put("unathorized", "HTTP/1.1 401 Unathorized");
-        this.responseLines.put("not_found", "HTTP/1.1 404 Not Found");
-        this.responseLines.put("server_error", "HTTP/1.1 500 Internal Server Error");
-    }
-
-    public byte[] handleRequest(String requestContent) {
-        String requestMethod = this.extractRequestMethod(requestContent);
-        String requestResource = this.extractRequestResource(requestContent);
-
-        if (requestMethod.equals("GET")) {
-            byte[] resourceData = this.getResource(requestResource);
-            byte[] responseContent = this.constructResponse(requestContent, resourceData);
-            return responseContent;
-        }
-
-        return null;
-    }
-
-    private byte[] getResource(String requestResource) {
-        byte[] fileByteData = null;
-        try {
-            this.resourceExtension = requestResource.substring(requestResource.lastIndexOf(".") + 1);
-
-            String resourcesSubfolderPath = "";
-            if(!requestResource.contains(WebConstraints.PAGES_PATH) && !requestResource.contains(WebConstraints.ASSETS_PATH)) {
-                if (this.resourceExtension.equals("html")) {
-                    resourcesSubfolderPath = "\\" + WebConstraints.PAGES_PATH;
-                } else if (this.supportedContentTypes.containsKey(this.resourceExtension)) {
-                    resourcesSubfolderPath = "\\" + WebConstraints.ASSETS_PATH;
-                }
-            }
-
-            fileByteData = Files.readAllBytes(Paths.get(WebConstraints.RESOURCES_PATH + resourcesSubfolderPath + requestResource));
-            this.resourceSize = fileByteData.length;
-            this.resourceStatus = "ok";
-        } catch (NoSuchFileException e) {
-            this.resourceStatus = "not_found";
-        } catch (AccessDeniedException e) {
-            this.resourceStatus = "unauthorized";
-        } catch (IOException e) {
-            this.resourceStatus = "server_error";
-            e.printStackTrace();
-        }
-
-        return fileByteData;
-    }
-
-    private String extractRequestResource(String requestContent) {
-        if(requestContent.split("\\s").length > 1) {
-            return requestContent.split("\\s")[1];
-        }
-
-        return requestContent;
-    }
-
-    private String extractRequestMethod(String requestContent) {
-        if(requestContent.split("\\s").length > 0) {
-            return requestContent.split("\\s")[0];
-        }
-
-        return requestContent;
-    }
-
-    private byte[] constructResponse(String requestContent, byte[] requestResult) {
-        String responseHeaders = this.getResponseHeaders(requestContent);
-
-        byte[] headersAsBytes = responseHeaders.getBytes();
-
-        byte[] fullResponseByteData = new byte[headersAsBytes.length + requestResult.length];
-
-        for (int i = 0; i < headersAsBytes.length; i++) {
-            fullResponseByteData[i] = headersAsBytes[i];
-        }
-
-        for (int i = 0; i < requestResult.length; i++) {
-            fullResponseByteData[i + headersAsBytes.length] = requestResult[i];
-        }
-
-        return fullResponseByteData;
-    }
-
-    private String getResponseHeaders(String requestContent) {
-        StringBuilder resultHeaders = new StringBuilder()
-                .append(this.responseLines.get(this.resourceStatus)).append(System.lineSeparator())
-                .append(WebConstraints.SERVER_HEADER_NAME_AND_VERSION).append(System.lineSeparator())
-                .append(WebConstraints.DATE_HEADER).append(this.getNewDate()).append(System.lineSeparator());
-
-        if(this.verifyResourceStatus()) {
-            resultHeaders
-                    .append(WebConstraints.CONTENT_TYPE_HEADER).append(this.getContentType(this.resourceExtension)).append(System.lineSeparator())
-                    .append(WebConstraints.CONTENT_DISPOSITION_HEADER).append(WebConstraints.CONTENT_DISPOSITION_VALUE_INLINE).append(System.lineSeparator())
-                    .append(WebConstraints.CONTENT_LENGTH_HEADER).append(this.resourceSize).append(System.lineSeparator());
-
-        } else if(this.resourceStatus.equals("found")){
-            resultHeaders.append(WebConstraints.LOCATION_HEADER).append(WebConstraints.DEFAULT_PAGE).append(System.lineSeparator());
-        }
-
-        return resultHeaders.append(System.lineSeparator()).toString();
-    }
-
-    private String getContentType(String resourceExtension) {
+    private String getContentType(String resourceUrl) {
+        String resourceExtension = resourceUrl.substring(resourceUrl.lastIndexOf(".") + 1);
         if (this.supportedContentTypes.containsKey(resourceExtension)) {
             return this.supportedContentTypes.get(resourceExtension);
         }
 
-        return "text/plain";
+        return "text/html";
     }
 
     private boolean verifyResourceStatus() {
-        return this.resourceStatus.equals("ok");
+        return this.httpResponse.getStatusCode() == 200;
     }
-
-    private Date getNewDate() {
-        return new Date();
-    }
-
-
 }
