@@ -1,5 +1,7 @@
 package javache.http;
 
+import javache.WebConstraints;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,7 +22,7 @@ public class HttpResponseImpl implements HttpResponse {
                 .append(ResponseLines.getResponseLine(this.getStatusCode().getStatusCode())).append(System.lineSeparator());
 
         for (Map.Entry<String,String> header : this.getHeaders().entrySet()) {
-            result.append(header.getKey()).append(": ").append(header.getValue()).append(System.lineSeparator());
+            result.append(header.getKey()).append(header.getValue()).append(System.lineSeparator());
         }
 
         result.append(System.lineSeparator());
@@ -61,10 +63,10 @@ public class HttpResponseImpl implements HttpResponse {
     @Override
     public void addCookie(String cookie, String value) {
         String cookieString = cookie + "=" + value;
-        if (!this.headers.containsKey("Set-Cookie")) {
-            this.headers.put("Set-Cookie", cookieString);
+        if (!this.headers.containsKey(WebConstraints.SET_COOKIE_HEADER)) {
+            this.headers.put(WebConstraints.SET_COOKIE_HEADER, cookieString);
         } else {
-            this.headers.put("Set-Cookie", this.headers.get("Set-Cookie") + "; " + cookie);
+            this.headers.put(WebConstraints.SET_COOKIE_HEADER, this.headers.get(WebConstraints.SET_COOKIE_HEADER) + "; " + cookie);
         }
     }
 

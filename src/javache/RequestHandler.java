@@ -2,6 +2,7 @@ package javache;
 
 import javache.http.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.file.AccessDeniedException;
@@ -27,32 +28,59 @@ public class RequestHandler {
         this.httpRequest = new HttpRequestImpl(requestContent);
         this.httpResponse = new HttpResponseImpl();
 
-        byte[] resourceData = this.getResource(this.httpRequest.getRequestUrl());
+        byte[] resourceData = null;
+
+        String url = this.httpRequest.getRequestUrl();
+        switch (url) {
+            case "/":
+                resourceData = this.getResource(WebConstraints.DEFAULT_PAGE);
+                httpResponse.setStatusCode(HttpStatus.Ok);
+                break;
+            case "/users/register":
+                resourceData = "<h1> I am register</h1>".getBytes();
+                httpResponse.setStatusCode(HttpStatus.Ok);
+                break;
+            case "/users/login":
+                resourceData = "<h1> I am login</h1>".getBytes();
+                httpResponse.setStatusCode(HttpStatus.Ok);
+                break;
+            case "/users/profile":
+                resourceData = "<h1> I am profile</h1>".getBytes();
+                httpResponse.setStatusCode(HttpStatus.Ok);
+                break;
+            default:
+                resourceData = this.getResource(url);
+        }
+
         this.httpResponse.setContent(resourceData);
         this.setResponseHeaders();
-
         return httpResponse.getBytes();
     }
 
-    private byte[] getResource(String requestResource) {
-        byte[] fileByteData = null;
-        try {
-            String returnPath = "";
-            if (!this.httpRequest.getRequestUrl().contains(".")) {
-                returnPath = WebConstraints.RESOURCES_PATH + WebConstraints.PAGES_PATH + requestResource + ".html";
-            } else {
-                returnPath = WebConstraints.RESOURCES_PATH + WebConstraints.ASSETS_PATH + requestResource;
-            }
+    private byte[] getResource(String url) {
+        String pathName = WebConstraints.ASSETS_PATH + url;
+        File file = new File(pathName);
 
-            fileByteData = Files.readAllBytes(Paths.get(returnPath));
-            this.httpResponse.setStatusCode(HttpStatus.Ok);
-        } catch (NoSuchFileException e) {
+        byte[] fileByteData = null;
+
+        if (!file.exists() || file.isDirectory()) {
             this.httpResponse.setStatusCode(HttpStatus.NotFound);
-        } catch (AccessDeniedException e) {
-            this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
-        } catch (IOException e) {
-            this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
-            e.printStackTrace();
+        } else {
+
+            try {
+                if (!file.getCanonicalPath().startsWith(WebConstraints.ASSETS_PATH)) {
+                    this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                }
+
+                fileByteData = Files.readAllBytes(Paths.get(pathName));
+                this.httpResponse.setStatusCode(HttpStatus.Ok);
+
+            } catch (AccessDeniedException e) {
+                this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
+            } catch (IOException e) {
+                this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
+                e.printStackTrace();
+            }
         }
         return fileByteData;
     }
@@ -72,6 +100,7 @@ public class RequestHandler {
         this.supportedContentTypes.put("png", "image/png");
         this.supportedContentTypes.put("jpg", "image/jpeg");
         this.supportedContentTypes.put("jpeg", "image/jpeg");
+        this.supportedContentTypes.put("css", "text/css");
         this.supportedContentTypes.put("html", "text/html");
     }
 
@@ -87,4 +116,5 @@ public class RequestHandler {
     private boolean verifyResourceStatus() {
         return this.httpResponse.getStatusCode().getStatusCode() == 200;
     }
+
 }
