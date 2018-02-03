@@ -110,7 +110,7 @@ public class RequestHandler {
             return this.supportedContentTypes.get(resourceExtension);
         }
 
-        return "text/html";
+        return "text/plain";
     }
 
     private boolean verifyResourceStatus() {
