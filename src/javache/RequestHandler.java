@@ -1,15 +1,11 @@
 package javache;
 
-import com.sun.org.apache.regexp.internal.RE;
 import javache.http.*;
 import javache.io.Reader;
 import javache.models.User;
 
 import java.io.*;
 import java.nio.file.AccessDeniedException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.UUID;
@@ -34,8 +30,8 @@ public class RequestHandler {
 
         String url = this.httpRequest.getRequestUrl();
         switch (url) {
-            case WebConstraints.DEFAULT_ROUTE:
-                resourceData = this.getResource(WebConstraints.DEFAULT_PAGE);
+            case WebConstraints.INDEX_ROUTE:
+                resourceData = this.getResource(WebConstraints.INDEX_PAGE);
                 break;
 
             case WebConstraints.REGISTER_ROUTE:
@@ -76,8 +72,16 @@ public class RequestHandler {
                         this.httpResponse.setStatusCode(HttpStatus.BadRequest);
                         resourceData = "<h1>Wrong Username/Password</h1>".getBytes();
                     } else {
+                        String sessionId = UUID.randomUUID().toString();
+
+                        this.httpSession.setSessionData(
+                                sessionId, new HashMap<String, Object>(){{
+                                    put("userId", user.getId());
+                                }}
+                        );
+
                         this.httpResponse.setStatusCode(HttpStatus.SeeOther);
-                        this.httpResponse.addCookie("userId", user.getId());
+                        this.httpResponse.addCookie("sessionId", sessionId);
                         this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, WebConstraints.PROFILE_ROUTE);
                     }
                 } catch (IOException e) {
@@ -89,11 +93,12 @@ public class RequestHandler {
 
             case WebConstraints.PROFILE_ROUTE:
                 try {
-                    String loggedUserId = this.httpRequest.getCookies().get("userId");
-                    if (loggedUserId == null) {
+                    String sessionId = this.httpRequest.getCookies().get("sessionId");
+                    if (sessionId == null) {
                         resourceData = Reader.readAllBytes(new FileInputStream(WebConstraints.PAGES_PATH + "/profile/guest.html"));
                         this.httpResponse.setStatusCode(HttpStatus.Ok);
                     } else {
+                        String loggedUserId = (String) this.httpSession.getSessionData(sessionId).get("userId");
                         User user = findUserById(loggedUserId);
                         if (user == null) {
                             this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
@@ -114,6 +119,13 @@ public class RequestHandler {
                 }
                 break;
 
+            case WebConstraints.LOGOUT_ROUTE:
+                this.httpResponse.addCookie("sessionId", "expires"+ new Date());
+                this.httpResponse.setStatusCode(HttpStatus.SeeOther);
+                this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, WebConstraints.INDEX_PAGE);
+
+                break;
+
             default:
                 resourceData = this.getResource(url);
         }
@@ -121,7 +133,6 @@ public class RequestHandler {
 
         this.httpResponse.setContent(resourceData);
         this.setResponseHeaders();
-        System.out.println(Arrays.toString(this.httpResponse.getHeaders().values().toArray()));
         return this.httpResponse.getBytes();
     }
 
