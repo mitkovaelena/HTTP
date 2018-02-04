@@ -96,7 +96,7 @@ public class RequestHandler {
                     String sessionId = this.httpRequest.getCookies().get("sessionId");
                     if (sessionId == null) {
                         resourceData = Reader.readAllBytes(new FileInputStream(WebConstraints.PAGES_PATH + "/profile/guest.html"));
-                        this.httpResponse.setStatusCode(HttpStatus.Ok);
+                        this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
                     } else {
                         String loggedUserId = (String) this.httpSession.getSessionData(sessionId).get("userId");
                         User user = findUserById(loggedUserId);
@@ -112,7 +112,7 @@ public class RequestHandler {
                             this.httpResponse.setStatusCode(HttpStatus.Ok);
                         }
                     }
-                } catch (IOException e) {
+                } catch (IOException | NullPointerException e) {
                     this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
                     resourceData = "<h1>Something went wrong</h1>".getBytes();
                     e.printStackTrace();
@@ -120,7 +120,7 @@ public class RequestHandler {
                 break;
 
             case WebConstraints.LOGOUT_ROUTE:
-                this.httpResponse.addCookie("sessionId", "expires"+ new Date());
+                this.httpResponse.addCookie("sessionId", this.httpRequest.getCookies().get("sessionId") + "; max-Age = -1");
                 this.httpResponse.setStatusCode(HttpStatus.SeeOther);
                 this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, WebConstraints.INDEX_PAGE);
 
