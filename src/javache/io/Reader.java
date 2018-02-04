@@ -11,12 +11,15 @@ public final class Reader {
 
     public static String readAllLines(InputStream csInputStream) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(csInputStream));
-        StringBuilder ouput = new StringBuilder();
+        StringBuilder output = new StringBuilder();
 
         while (reader.ready()){
-            ouput.append((char)reader.read());
+            output.append((char)reader.read());
         }
 
-        return ouput.toString();
+        return output.toString();
+    }
+    public static byte[] readAllBytes(InputStream csInputStream) throws IOException {
+        return readAllLines(csInputStream).getBytes();
     }
 }

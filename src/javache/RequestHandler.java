@@ -1,16 +1,18 @@
 package javache;
 
+import com.sun.org.apache.regexp.internal.RE;
 import javache.http.*;
+import javache.io.Reader;
+import javache.models.User;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.Socket;
+import java.io.*;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.UUID;
 
 public class RequestHandler {
     private HttpRequest httpRequest;
@@ -28,33 +30,130 @@ public class RequestHandler {
         this.httpRequest = new HttpRequestImpl(requestContent);
         this.httpResponse = new HttpResponseImpl();
 
-        byte[] resourceData = null;
+        byte[] resourceData = new byte[0];
 
         String url = this.httpRequest.getRequestUrl();
         switch (url) {
-            case "/":
+            case WebConstraints.DEFAULT_ROUTE:
                 resourceData = this.getResource(WebConstraints.DEFAULT_PAGE);
-                httpResponse.setStatusCode(HttpStatus.Ok);
                 break;
-            case "/users/register":
-                resourceData = "<h1> I am register</h1>".getBytes();
-                httpResponse.setStatusCode(HttpStatus.Ok);
+
+            case WebConstraints.REGISTER_ROUTE:
+                String registerEmail = this.httpRequest.getBodyParameters().get("email");
+                String registerPass = this.httpRequest.getBodyParameters().get("password");
+                String confirmPass = this.httpRequest.getBodyParameters().get("password_confirm");
+                if (!registerPass.equals(confirmPass)) {
+                    this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                    resourceData = "<h1>Passwords mismatch</h1>".getBytes();
+                } else {
+                    try {
+                        User existingUser = this.findUserByEmail(registerEmail);
+                        if (existingUser != null) {
+                            this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                            resourceData = "<h1>User already exists</h1>".getBytes();
+                        } else {
+                            this.writeUserData(new User(registerEmail, registerPass));
+                            this.httpResponse.setStatusCode(HttpStatus.SeeOther);
+                            this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, WebConstraints.LOGIN_PAGE);
+                        }
+                    } catch (IOException e) {
+                        this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
+                        resourceData = "<h1>Something went wrong</h1>".getBytes();
+                        e.printStackTrace();
+                    }
+                }
                 break;
-            case "/users/login":
-                resourceData = "<h1> I am login</h1>".getBytes();
-                httpResponse.setStatusCode(HttpStatus.Ok);
+
+            case WebConstraints.LOGIN_ROUTE:
+                String loginEmail = this.httpRequest.getBodyParameters().get("email");
+                String loginPass = this.httpRequest.getBodyParameters().get("password");
+                try {
+                    User user = this.findUserByEmail(loginEmail);
+                    if (user == null) {
+                        this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                        resourceData = "<h1>User doesn't exist</h1>".getBytes();
+                    } else if (!user.getPassword().equals(loginPass)) {
+                        this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                        resourceData = "<h1>Wrong Username/Password</h1>".getBytes();
+                    } else {
+                        this.httpResponse.setStatusCode(HttpStatus.SeeOther);
+                        this.httpResponse.addCookie("userId", user.getId());
+                        this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, WebConstraints.PROFILE_ROUTE);
+                    }
+                } catch (IOException e) {
+                    this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
+                    resourceData = "<h1>Something went wrong</h1>".getBytes();
+                    e.printStackTrace();
+                }
                 break;
-            case "/users/profile":
-                resourceData = "<h1> I am profile</h1>".getBytes();
-                httpResponse.setStatusCode(HttpStatus.Ok);
+
+            case WebConstraints.PROFILE_ROUTE:
+                try {
+                    String loggedUserId = this.httpRequest.getCookies().get("userId");
+                    if (loggedUserId == null) {
+                        resourceData = Reader.readAllBytes(new FileInputStream(WebConstraints.PAGES_PATH + "/profile/guest.html"));
+                        this.httpResponse.setStatusCode(HttpStatus.Ok);
+                    } else {
+                        User user = findUserById(loggedUserId);
+                        if (user == null) {
+                            this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
+                        } else {
+                            String loggedContent = Reader.readAllLines(
+                                    new FileInputStream(
+                                            WebConstraints.PAGES_PATH + "/profile/logged.html"));
+                            resourceData = String.format(loggedContent,
+                                    user.getEmail(),
+                                    user.getPassword()).getBytes();
+                            this.httpResponse.setStatusCode(HttpStatus.Ok);
+                        }
+                    }
+                } catch (IOException e) {
+                    this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
+                    resourceData = "<h1>Something went wrong</h1>".getBytes();
+                    e.printStackTrace();
+                }
                 break;
+
             default:
                 resourceData = this.getResource(url);
         }
 
+
         this.httpResponse.setContent(resourceData);
         this.setResponseHeaders();
-        return httpResponse.getBytes();
+        System.out.println(Arrays.toString(this.httpResponse.getHeaders().values().toArray()));
+        return this.httpResponse.getBytes();
+    }
+
+    private void writeUserData(User user) throws IOException {
+        try (FileWriter fileWriter = new FileWriter(WebConstraints.USERS_DB_PATH, true)) {
+            fileWriter.append(UUID.randomUUID().toString()).append("|")
+                    .append(user.getEmail()).append("|")
+                    .append(String.valueOf(user.getPassword()))
+                    .append(System.lineSeparator());
+            fileWriter.flush();
+        }
+    }
+
+    private User findUserByEmail(String email) throws IOException {
+        return this.findUserData(email, 1);
+    }
+
+    private User findUserById(String id) throws IOException {
+        return this.findUserData(id, 0);
+    }
+
+    private User findUserData(String searchStr, int index) throws IOException {
+        try (BufferedReader br = new BufferedReader(new FileReader(WebConstraints.USERS_DB_PATH))) {
+            String line = null;
+            while ((line = br.readLine()) != null) {
+                String[] userStr = line.split("\\|");
+                if (userStr[index].equals(searchStr)) {
+                    return new User(userStr[0], userStr[1], userStr[2]);
+                }
+            }
+        }
+        return null;
     }
 
     private byte[] getResource(String url) {
@@ -66,17 +165,17 @@ public class RequestHandler {
         if (!file.exists() || file.isDirectory()) {
             this.httpResponse.setStatusCode(HttpStatus.NotFound);
         } else {
-
             try {
                 if (!file.getCanonicalPath().startsWith(WebConstraints.ASSETS_PATH)) {
                     this.httpResponse.setStatusCode(HttpStatus.BadRequest);
                 }
 
-                fileByteData = Files.readAllBytes(Paths.get(pathName));
+                fileByteData = Reader.readAllBytes(new FileInputStream(pathName));
                 this.httpResponse.setStatusCode(HttpStatus.Ok);
 
             } catch (AccessDeniedException e) {
                 this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
+                e.printStackTrace();
             } catch (IOException e) {
                 this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
                 e.printStackTrace();
@@ -110,7 +209,7 @@ public class RequestHandler {
             return this.supportedContentTypes.get(resourceExtension);
         }
 
-        return "text/plain";
+        return "text/html";
     }
 
     private boolean verifyResourceStatus() {

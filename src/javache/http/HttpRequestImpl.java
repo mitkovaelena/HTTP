@@ -73,8 +73,8 @@ public class HttpRequestImpl implements HttpRequest {
             if(requestParams.size() > this.headers.size() + 2) {
                 List<String> bodyParams = Arrays.asList(requestParams.get(this.headers.size() + 2).split("\\&"));
 
-                for (int i = 0; i < bodyParams.size(); i++) {
-                    String[] bodyKeyValuePair = bodyParams.get(i).split("\\=");
+                for (String bodyParam : bodyParams) {
+                    String[] bodyKeyValuePair = bodyParam.split("\\=");
 
                     try {
                         this.addBodyParameter(bodyKeyValuePair[0], URLDecoder.decode(bodyKeyValuePair[1], "UTF-8"));
