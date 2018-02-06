@@ -10,28 +10,31 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.FutureTask;
 
 public class Server {
-    private static final int SOCKET_TIMEOUT_MILLISECONDS = 10000;
 
     private int port;
     private ServerSocket server;
+    private Application application;
 
-    public Server(int port) {
+
+    public Server(int port, Application application) {
         this.port = port;
+        this.application = application;
     }
 
     public void run() throws IOException {
         this.server = new ServerSocket(this.port);
-        this.server.setSoTimeout(SOCKET_TIMEOUT_MILLISECONDS);
+        this.server.setSoTimeout(WebConstraints.SOCKET_TIMEOUT_MILLISECONDS);
 
         HttpSession session = new HttpSessionImpl();
+        this.application.setSession(session);
 
         while (true){
             try(Socket clientSocket = this.server.accept()) {
-                clientSocket.setSoTimeout(SOCKET_TIMEOUT_MILLISECONDS);
+                clientSocket.setSoTimeout(WebConstraints.SOCKET_TIMEOUT_MILLISECONDS);
                 System.out.println("Client connected: " + clientSocket.getPort());
 
                 ConnectionHandler connectionHandler =
-                        new ConnectionHandler(clientSocket, new RequestHandler(session));
+                        new ConnectionHandler(clientSocket, new RequestHandler(this.application));
                 FutureTask<?> task = new FutureTask<>(connectionHandler, null);
                 task.run();
             } catch (SocketTimeoutException e){

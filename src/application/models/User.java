@@ -1,4 +1,4 @@
-package javache.models;
+package application.models;
 
 public class User {
     private String id;

@@ -1,4 +1,8 @@
-package javache;
+import application.AppConstraints;
+import application.CasebookApplication;
+import javache.Application;
+import javache.Server;
+import javache.WebConstraints;
 
 import java.io.IOException;
 
@@ -10,7 +14,8 @@ public class StartUp {
             port = Integer.parseInt(args[1]);
         }
 
-        Server server = new Server(port);
+        Application application = new CasebookApplication();
+        Server server = new Server(port, application);
 
         try {
             server.run();
