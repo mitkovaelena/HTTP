@@ -28,4 +28,8 @@ public class HttpSessionImpl implements HttpSession {
     public Map<String, Object> getSessionData(String sessionId) {
         return this.allSessions.get(sessionId);
     }
+
+    public void removeSession(String sessionId){
+        this.allSessions.remove(sessionId);
+    }
 }

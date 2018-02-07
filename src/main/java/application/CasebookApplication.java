@@ -58,7 +58,7 @@ public class CasebookApplication implements Application {
                             this.httpResponse.setStatusCode(HttpStatus.BAD_REQUEST);
                             resourceData = "<h1>User already exists</h1>".getBytes();
                         } else {
-                            repository.doAction("create", registerEmail, registerPass);
+                            this.repository.doAction("create", registerEmail, registerPass);
                             this.httpResponse.setStatusCode(HttpStatus.SEE_OTHER);
                             this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, AppConstraints.LOGIN_PAGE);
                         }
@@ -68,7 +68,7 @@ public class CasebookApplication implements Application {
             case AppConstraints.LOGIN_ROUTE:
                 String loginEmail = this.httpRequest.getBodyParameters().get("email");
                 String loginPass = this.httpRequest.getBodyParameters().get("password");
-                    User loggedUser = (User) repository.doAction("findByEmail",loginEmail);
+                    User loggedUser = (User) this.repository.doAction("findByEmail",loginEmail);
                     if (loggedUser == null) {
                         this.httpResponse.setStatusCode(HttpStatus.BAD_REQUEST);
                         resourceData = "<h1>User doesn't exist</h1>".getBytes();
@@ -98,7 +98,7 @@ public class CasebookApplication implements Application {
                         this.httpResponse.setStatusCode(HttpStatus.UNAUTHORIZED);
                     } else {
                         String loggedUserId = (String) this.httpSession.getSessionData(sessionId).get("userId");
-                        User foundUser = (User) repository.doAction("findById",loggedUserId);;
+                        User foundUser = (User) this.repository.doAction("findById",loggedUserId);;
                         if (foundUser == null) {
                             this.httpResponse.setStatusCode(HttpStatus.UNAUTHORIZED);
                         } else {
@@ -119,7 +119,9 @@ public class CasebookApplication implements Application {
                 break;
 
             case AppConstraints.LOGOUT_ROUTE:
-                this.httpResponse.addCookie("sessionId", this.httpRequest.getCookies().get("sessionId") + "; max-Age = -1");
+                String sessionId = this.httpRequest.getCookies().get("sessionId");
+                this.httpResponse.addCookie("sessionId", sessionId + "; max-Age = -1");
+                this.httpSession.removeSession(sessionId);
                 this.httpResponse.setStatusCode(HttpStatus.SEE_OTHER);
                 this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, AppConstraints.INDEX_PAGE);
 

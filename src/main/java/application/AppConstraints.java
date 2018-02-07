@@ -4,7 +4,7 @@ public class AppConstraints {
     public final static String RESOURCES_PATH =  System.getProperty("user.dir") +"/src/main/java/application/resources/";
     public final static String ASSETS_PATH = AppConstraints.RESOURCES_PATH + "assets/";
     public final static String USERS_DB_PATH = AppConstraints.RESOURCES_PATH + "db/users.txt";
-    public final static String PAGES_PATH =  AppConstraints.RESOURCES_PATH + "pages/";
+    public final static String PAGES_PATH =  AppConstraints.RESOURCES_PATH + "templates/";
 
     public static final String INDEX_PAGE = "/html/index.html";
     public static final String LOGIN_PAGE = "/html/login.html";

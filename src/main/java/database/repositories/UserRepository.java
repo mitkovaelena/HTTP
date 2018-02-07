@@ -26,11 +26,11 @@ public class UserRepository extends BaseRepository {
         return resultingObject;
     }
 
-    private User findByEmail(String email) {
+    private User findByEmail(String username) {
         User resultingObject = null;
 
         resultingObject = (User) this.entityManager
-                .createNativeQuery("SELECT * FROM users as u WHERE u.email = \'" + email + "\'", User.class)
+                .createNativeQuery("SELECT * FROM users as u WHERE u.email = \'" + username + "\'", User.class)
                 .getSingleResult();
 
         return resultingObject;
