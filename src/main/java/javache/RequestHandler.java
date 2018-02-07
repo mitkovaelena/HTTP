@@ -2,7 +2,7 @@ package javache;
 
 import javache.http.*;
 
-public class RequestHandler {
+class RequestHandler {
     private HttpContext httpContext;
     private Application application;
 

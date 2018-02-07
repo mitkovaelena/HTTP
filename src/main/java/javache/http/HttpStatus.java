@@ -1,15 +1,15 @@
 package javache.http;
 
 public enum HttpStatus {
-    Ok("200 OK"),
-    Created("201 Created"),
-    NoContent("204 No Content"),
-    SeeOther("303 See Other"),
-    BadRequest("400 Bad Request"),
-    Unauthorized("401 Unauthorized"),
-    Forbidden("403 Forbidden"),
-    NotFound("404 Not Found"),
-    InternalServerError("500 Internal Server Error");
+    OK("200 OK"),
+    CREATED("201 CREATED"),
+    NO_CONTENT("204 No Content"),
+    SEE_OTHER("303 See Other"),
+    BAD_REQUEST("400 Bad Request"),
+    UNAUTHORIZED("401 UNAUTHORIZED"),
+    FORBIDDEN("403 FORBIDDEN"),
+    NOT_FOUND("404 Not Found"),
+    INTERNAL_SERVER_ERROR("500 Internal Server Error");
 
     private String statusPhrase;
 

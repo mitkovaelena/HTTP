@@ -1,25 +1,35 @@
 package application;
 
+import database.repositories.Repository;
+import database.repositories.UserRepository;
 import javache.Application;
 import javache.WebConstraints;
 import javache.http.*;
 import javache.io.Reader;
-import application.models.User;
+import database.models.User;
 
-import java.io.*;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.UUID;
 
 public class CasebookApplication implements Application {
+    private static final EntityManagerFactory ENTITY_MANAGER_FACTORY = Persistence.createEntityManagerFactory("Casebook");
+
     private HttpRequest httpRequest;
     private HttpResponse httpResponse;
     private HttpSession httpSession;
+    private Repository repository;
     private HashMap<String, String> supportedContentTypes;
 
     public CasebookApplication() {
         this.supportedContentTypes = new HashMap<>();
+        this.repository = new UserRepository(ENTITY_MANAGER_FACTORY);
         this.seedSupportedContentTypes();
     }
 
@@ -40,56 +50,44 @@ public class CasebookApplication implements Application {
                 String registerPass = this.httpRequest.getBodyParameters().get("password");
                 String confirmPass = this.httpRequest.getBodyParameters().get("password_confirm");
                 if (!registerPass.equals(confirmPass)) {
-                    this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                    this.httpResponse.setStatusCode(HttpStatus.BAD_REQUEST);
                     resourceData = "<h1>Passwords mismatch</h1>".getBytes();
                 } else {
-                    try {
-                        User existingUser = this.findUserByEmail(registerEmail);
+                        User existingUser = (User) repository.doAction("findByEmail",registerEmail);
                         if (existingUser != null) {
-                            this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                            this.httpResponse.setStatusCode(HttpStatus.BAD_REQUEST);
                             resourceData = "<h1>User already exists</h1>".getBytes();
                         } else {
-                            this.writeUserData(new User(registerEmail, registerPass));
-                            this.httpResponse.setStatusCode(HttpStatus.SeeOther);
+                            repository.doAction("create", registerEmail, registerPass);
+                            this.httpResponse.setStatusCode(HttpStatus.SEE_OTHER);
                             this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, AppConstraints.LOGIN_PAGE);
                         }
-                    } catch (IOException e) {
-                        this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
-                        resourceData = "<h1>Something went wrong</h1>".getBytes();
-                        e.printStackTrace();
-                    }
                 }
                 break;
 
             case AppConstraints.LOGIN_ROUTE:
                 String loginEmail = this.httpRequest.getBodyParameters().get("email");
                 String loginPass = this.httpRequest.getBodyParameters().get("password");
-                try {
-                    User user = this.findUserByEmail(loginEmail);
-                    if (user == null) {
-                        this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                    User loggedUser = (User) repository.doAction("findByEmail",loginEmail);
+                    if (loggedUser == null) {
+                        this.httpResponse.setStatusCode(HttpStatus.BAD_REQUEST);
                         resourceData = "<h1>User doesn't exist</h1>".getBytes();
-                    } else if (!user.getPassword().equals(loginPass)) {
-                        this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                    } else if (!loggedUser.getPassword().equals(loginPass)) {
+                        this.httpResponse.setStatusCode(HttpStatus.BAD_REQUEST);
                         resourceData = "<h1>Wrong Username/Password</h1>".getBytes();
                     } else {
                         String sessionId = UUID.randomUUID().toString();
 
                         this.httpSession.setSessionData(
                                 sessionId, new HashMap<String, Object>(){{
-                                    put("userId", user.getId());
+                                    put("userId", loggedUser.getId());
                                 }}
                         );
 
-                        this.httpResponse.setStatusCode(HttpStatus.SeeOther);
+                        this.httpResponse.setStatusCode(HttpStatus.SEE_OTHER);
                         this.httpResponse.addCookie("sessionId", sessionId);
                         this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, AppConstraints.PROFILE_ROUTE);
                     }
-                } catch (IOException e) {
-                    this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
-                    resourceData = "<h1>Something went wrong</h1>".getBytes();
-                    e.printStackTrace();
-                }
                 break;
 
             case AppConstraints.PROFILE_ROUTE:
@@ -97,24 +95,24 @@ public class CasebookApplication implements Application {
                     String sessionId = this.httpRequest.getCookies().get("sessionId");
                     if (sessionId == null) {
                         resourceData = Reader.readAllBytes(new FileInputStream(AppConstraints.PAGES_PATH + "/profile/guest.html"));
-                        this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
+                        this.httpResponse.setStatusCode(HttpStatus.UNAUTHORIZED);
                     } else {
                         String loggedUserId = (String) this.httpSession.getSessionData(sessionId).get("userId");
-                        User user = findUserById(loggedUserId);
-                        if (user == null) {
-                            this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
+                        User foundUser = (User) repository.doAction("findById",loggedUserId);;
+                        if (foundUser == null) {
+                            this.httpResponse.setStatusCode(HttpStatus.UNAUTHORIZED);
                         } else {
                             String loggedContent = Reader.readAllLines(
                                     new FileInputStream(
                                             AppConstraints.PAGES_PATH + "/profile/logged.html"));
                             resourceData = String.format(loggedContent,
-                                    user.getEmail(),
-                                    user.getPassword()).getBytes();
-                            this.httpResponse.setStatusCode(HttpStatus.Ok);
+                                    foundUser.getEmail(),
+                                    foundUser.getPassword()).getBytes();
+                            this.httpResponse.setStatusCode(HttpStatus.OK);
                         }
                     }
                 } catch (IOException | NullPointerException e) {
-                    this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
+                    this.httpResponse.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
                     resourceData = "<h1>Something went wrong</h1>".getBytes();
                     e.printStackTrace();
                 }
@@ -122,7 +120,7 @@ public class CasebookApplication implements Application {
 
             case AppConstraints.LOGOUT_ROUTE:
                 this.httpResponse.addCookie("sessionId", this.httpRequest.getCookies().get("sessionId") + "; max-Age = -1");
-                this.httpResponse.setStatusCode(HttpStatus.SeeOther);
+                this.httpResponse.setStatusCode(HttpStatus.SEE_OTHER);
                 this.httpResponse.addHeader(WebConstraints.LOCATION_HEADER, AppConstraints.INDEX_PAGE);
 
                 break;
@@ -130,7 +128,6 @@ public class CasebookApplication implements Application {
             default:
                 resourceData = this.getResource(url);
         }
-
 
         this.httpResponse.setContent(resourceData);
         this.setResponseHeaders();
@@ -142,37 +139,6 @@ public class CasebookApplication implements Application {
         this.httpSession = session;
     }
 
-    private void writeUserData(User user) throws IOException {
-        try (FileWriter fileWriter = new FileWriter(AppConstraints.USERS_DB_PATH, true)) {
-            fileWriter.append(UUID.randomUUID().toString()).append("|")
-                    .append(user.getEmail()).append("|")
-                    .append(String.valueOf(user.getPassword()))
-                    .append(System.lineSeparator());
-            fileWriter.flush();
-        }
-    }
-
-    private User findUserByEmail(String email) throws IOException {
-        return this.findUserData(email, 1);
-    }
-
-    private User findUserById(String id) throws IOException {
-        return this.findUserData(id, 0);
-    }
-
-    private User findUserData(String searchStr, int index) throws IOException {
-        try (BufferedReader br = new BufferedReader(new FileReader(AppConstraints.USERS_DB_PATH))) {
-            String line = null;
-            while ((line = br.readLine()) != null) {
-                String[] userStr = line.split("\\|");
-                if (userStr[index].equals(searchStr)) {
-                    return new User(userStr[0], userStr[1], userStr[2]);
-                }
-            }
-        }
-        return null;
-    }
-
     private byte[] getResource(String url) {
         String pathName = AppConstraints.ASSETS_PATH + url;
         File file = new File(pathName);
@@ -180,21 +146,21 @@ public class CasebookApplication implements Application {
         byte[] fileByteData = null;
 
         if (!file.exists() || file.isDirectory()) {
-            this.httpResponse.setStatusCode(HttpStatus.NotFound);
+            this.httpResponse.setStatusCode(HttpStatus.NOT_FOUND);
         } else {
             try {
                 if (!file.getCanonicalPath().startsWith(AppConstraints.ASSETS_PATH)) {
-                    this.httpResponse.setStatusCode(HttpStatus.BadRequest);
+                    this.httpResponse.setStatusCode(HttpStatus.BAD_REQUEST);
                 }
 
                 fileByteData = Reader.readAllBytes(new FileInputStream(pathName));
-                this.httpResponse.setStatusCode(HttpStatus.Ok);
+                this.httpResponse.setStatusCode(HttpStatus.OK);
 
             } catch (AccessDeniedException e) {
-                this.httpResponse.setStatusCode(HttpStatus.Unauthorized);
+                this.httpResponse.setStatusCode(HttpStatus.UNAUTHORIZED);
                 e.printStackTrace();
             } catch (IOException e) {
-                this.httpResponse.setStatusCode(HttpStatus.InternalServerError);
+                this.httpResponse.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
                 e.printStackTrace();
             }
         }
