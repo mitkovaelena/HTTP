@@ -1,2 +1,0 @@
-Repositories + Model
-Application refactoring, so to work with the Repository
