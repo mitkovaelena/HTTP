@@ -32,9 +32,19 @@ public class ConnectionHandler extends Thread {
     @Override
     public void run() {
         try {
-            String requestContent = Reader.readAllLines(this.csInputStream);
+            String requestContent = null;
+
+            for (int i = 0; i < WebConstraints.SOCKET_TIMEOUT_MILLISECONDS; i++) {
+                requestContent = Reader.readAllLines(this.csInputStream);
+
+                if (requestContent.length() > 0) {
+                    break;
+                }
+            }
+
             byte[] responseContent = this.requestHandler.handleRequest(requestContent);
             Writer.writeBytes(responseContent, this.csOutputStream);
+
             csInputStream.close();
             csOutputStream.close();
         } catch (IOException e) {
