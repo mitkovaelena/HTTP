@@ -1,10 +1,16 @@
 package javache;
 
+import java.io.File;
+
 public class WebConstants {
     public static final String SERVER_NAME_AND_VERSION = "Javache/-1.0.0";
     public static final String SERVER_HTTP_VERSION = "HTTP/1.1";
     public static final int DEFAULT_PORT = 8000;
     public static final int SOCKET_TIMEOUT_MILLISECONDS = 1000;
+
+    static final String ROOT_PATH = new File(StartUp.class.getProtectionDomain().getCodeSource()
+            .getLocation().getPath()).toString();
+    static final String HANDLERS_FOLDER = ROOT_PATH + File.separator + "lib";
 
     public static final String SERVER_HEADER = "Server: ";
     public static final String DATE_HEADER = "Date: ";
@@ -17,4 +23,5 @@ public class WebConstants {
     public static final String CONTENT_DISPOSITION_VALUE_INLINE = "inline";
 
     public WebConstants() { }
+
 }

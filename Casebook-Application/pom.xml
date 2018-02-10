@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.softuni</groupId>
-    <artifactId>casebook</artifactId>
+    <artifactId>Casebook</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <build>
@@ -41,5 +41,5 @@
             <version>2.3.0</version>
         </dependency>
     </dependencies>
-    
+
 </project>

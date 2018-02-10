@@ -1,8 +1,5 @@
 package javache;
 
-import javache.io.Reader;
-import javache.io.Writer;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -12,11 +9,11 @@ public class ConnectionHandler extends Thread {
     private Socket clientSocket;
     private InputStream csInputStream;
     private OutputStream csOutputStream;
-    private RequestHandler requestHandler;
+    private Iterable<RequestHandler> requestHandlers;
 
-    public ConnectionHandler(Socket clientSocket, RequestHandler requestHandler) {
+    public ConnectionHandler(Socket clientSocket, Iterable<RequestHandler> requestHandlers) {
         this.initializeConnection(clientSocket);
-        this.requestHandler = requestHandler;
+        this.requestHandlers = requestHandlers;
     }
 
     private void initializeConnection(Socket clientSocket) {
@@ -32,21 +29,17 @@ public class ConnectionHandler extends Thread {
     @Override
     public void run() {
         try {
-            String requestContent = null;
+            for (RequestHandler requestHandler : this.requestHandlers) {
+                requestHandler.handleRequest(csInputStream, csOutputStream);
 
-            for (int i = 0; i < WebConstants.SOCKET_TIMEOUT_MILLISECONDS; i++) {
-                requestContent = Reader.readAllLines(this.csInputStream);
-
-                if (requestContent.length() > 0) {
+                if(requestHandler.hasIntercepted()){
                     break;
                 }
             }
 
-            byte[] responseContent = this.requestHandler.handleRequest(requestContent);
-            Writer.writeBytes(responseContent, this.csOutputStream);
-
             csInputStream.close();
             csOutputStream.close();
+            this.clientSocket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
