@@ -1,7 +1,7 @@
 package javache;
 
-import javache.http.HttpSession;
-import javache.http.HttpSessionImpl;
+import javache.http.HttpSessionStorage;
+import javache.http.HttpSessionStorageImpl;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -12,7 +12,7 @@ import java.util.concurrent.FutureTask;
 public class Server {
 
     private int port;
-    private ServerSocket server;
+    private ServerSocket serverSocket;
     private Application application;
 
 
@@ -22,15 +22,15 @@ public class Server {
     }
 
     public void run() throws IOException {
-        this.server = new ServerSocket(this.port);
-        this.server.setSoTimeout(WebConstraints.SOCKET_TIMEOUT_MILLISECONDS);
+        this.serverSocket = new ServerSocket(this.port);
+        this.serverSocket.setSoTimeout(WebConstants.SOCKET_TIMEOUT_MILLISECONDS);
 
-        HttpSession session = new HttpSessionImpl();
-        this.application.setSession(session);
+        HttpSessionStorage sessionStorage = new HttpSessionStorageImpl();
+        this.application.setSessionStorage(sessionStorage);
 
         while (true){
-            try(Socket clientSocket = this.server.accept()) {
-                clientSocket.setSoTimeout(WebConstraints.SOCKET_TIMEOUT_MILLISECONDS);
+            try(Socket clientSocket = this.serverSocket.accept()) {
+                clientSocket.setSoTimeout(WebConstants.SOCKET_TIMEOUT_MILLISECONDS);
                 System.out.println("Client connected: " + clientSocket.getPort());
 
                 ConnectionHandler connectionHandler =

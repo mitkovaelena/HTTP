@@ -1,6 +1,6 @@
 package javache.http;
 
-import javache.WebConstraints;
+import javache.WebConstants;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -63,10 +63,10 @@ public class HttpResponseImpl implements HttpResponse {
     @Override
     public void addCookie(String cookie, String value) {
         String cookieString = cookie + "=" + value;
-        if (!this.headers.containsKey(WebConstraints.SET_COOKIE_HEADER)) {
-            this.headers.put(WebConstraints.SET_COOKIE_HEADER, cookieString);
+        if (!this.headers.containsKey(WebConstants.SET_COOKIE_HEADER)) {
+            this.headers.put(WebConstants.SET_COOKIE_HEADER, cookieString);
         } else {
-            this.headers.put(WebConstraints.SET_COOKIE_HEADER, this.headers.get(WebConstraints.SET_COOKIE_HEADER) + "; " + cookie);
+            this.headers.put(WebConstants.SET_COOKIE_HEADER, this.headers.get(WebConstants.SET_COOKIE_HEADER) + "; " + cookie);
         }
     }
 

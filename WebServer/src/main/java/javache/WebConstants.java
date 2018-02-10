@@ -1,6 +1,6 @@
 package javache;
 
-public class WebConstraints {
+public class WebConstants {
     public static final String SERVER_NAME_AND_VERSION = "Javache/-1.0.0";
     public static final String SERVER_HTTP_VERSION = "HTTP/1.1";
     public static final int DEFAULT_PORT = 8000;
@@ -16,5 +16,5 @@ public class WebConstraints {
 
     public static final String CONTENT_DISPOSITION_VALUE_INLINE = "inline";
 
-    public WebConstraints() { }
+    public WebConstants() { }
 }

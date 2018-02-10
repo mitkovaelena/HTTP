@@ -34,7 +34,7 @@ public class ConnectionHandler extends Thread {
         try {
             String requestContent = null;
 
-            for (int i = 0; i < WebConstraints.SOCKET_TIMEOUT_MILLISECONDS; i++) {
+            for (int i = 0; i < WebConstants.SOCKET_TIMEOUT_MILLISECONDS; i++) {
                 requestContent = Reader.readAllLines(this.csInputStream);
 
                 if (requestContent.length() > 0) {

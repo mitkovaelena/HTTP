@@ -1,14 +1,13 @@
-import application.AppConstraints;
 import application.CasebookApplication;
 import javache.Application;
 import javache.Server;
-import javache.WebConstraints;
+import javache.WebConstants;
 
 import java.io.IOException;
 
 public class StartUp {
     public static void main(String[] args) {
-        int port = WebConstraints.DEFAULT_PORT;
+        int port = WebConstants.DEFAULT_PORT;
 
         if(args.length > 1){
             port = Integer.parseInt(args[1]);
