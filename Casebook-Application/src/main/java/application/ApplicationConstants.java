@@ -15,5 +15,14 @@ public class ApplicationConstants {
     public static final String LOGOUT_ROUTE = "/users/logout";
     public static final String PROFILE_ROUTE = "/users/profile";
 
+    public static final String SERVER_NAME_AND_VERSION = "Javache/-1.0.0";
+    public static final String SERVER_HEADER = "Server: ";
+    public static final String DATE_HEADER = "Date: ";
+    public static final String CONTENT_TYPE_HEADER = "Content-Type: ";
+    public static final String CONTENT_DISPOSITION_HEADER = "Content-Disposition: ";
+    public static final String CONTENT_LENGTH_HEADER = "Content-Length: ";
+    public static final String LOCATION_HEADER = "Location: ";
+    public static final String CONTENT_DISPOSITION_VALUE_INLINE = "inline";
+
     public ApplicationConstants() { }
 }

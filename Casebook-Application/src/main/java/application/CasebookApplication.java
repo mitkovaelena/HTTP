@@ -2,8 +2,6 @@ package application;
 
 import database.repositories.Repository;
 import database.repositories.UserRepository;
-import javache.Application;
-import javache.WebConstants;
 import javache.http.*;
 import javache.io.Reader;
 import database.models.User;
@@ -14,6 +12,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class CasebookApplication implements Application {
@@ -58,7 +58,7 @@ public class CasebookApplication implements Application {
                     } else {
                         this.repository.doAction("create", registerEmail, registerPass);
                         this.httpResponse.setStatusCode(HttpStatus.SEE_OTHER);
-                        this.httpResponse.addHeader(WebConstants.LOCATION_HEADER, ApplicationConstants.LOGIN_PAGE);
+                        this.httpResponse.addHeader(ApplicationConstants.LOCATION_HEADER, ApplicationConstants.LOGIN_PAGE);
                     }
                 }
                 break;
@@ -81,7 +81,7 @@ public class CasebookApplication implements Application {
 
                     this.httpResponse.setStatusCode(HttpStatus.SEE_OTHER);
                     this.httpResponse.addCookie("sessionId", sessionId);
-                    this.httpResponse.addHeader(WebConstants.LOCATION_HEADER, ApplicationConstants.PROFILE_ROUTE);
+                    this.httpResponse.addHeader(ApplicationConstants.LOCATION_HEADER, ApplicationConstants.PROFILE_ROUTE);
                 }
                 break;
 
@@ -127,7 +127,7 @@ public class CasebookApplication implements Application {
                         currentSession.invalidate();
                         this.sessionStorage.removeSession(sessionId);
                         this.httpResponse.setStatusCode(HttpStatus.SEE_OTHER);
-                        this.httpResponse.addHeader(WebConstants.LOCATION_HEADER, ApplicationConstants.INDEX_PAGE);
+                        this.httpResponse.addHeader(ApplicationConstants.LOCATION_HEADER, ApplicationConstants.INDEX_PAGE);
                     }
                 } catch (IOException | NullPointerException e){
                     this.httpResponse.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -137,7 +137,8 @@ public class CasebookApplication implements Application {
                 break;
 
             default:
-                resourceData = this.getResource(url);
+                //resourceData = this.getResource(url);
+                return resourceData;
         }
 
         this.httpResponse.setContent(resourceData);
@@ -169,7 +170,7 @@ public class CasebookApplication implements Application {
                     this.httpResponse.setStatusCode(HttpStatus.BAD_REQUEST);
                 }
 
-                fileByteData = Reader.readAllBytes(new FileInputStream(pathName));
+                fileByteData =  Files.readAllBytes(Paths.get(file.getCanonicalPath()));
                 this.httpResponse.setStatusCode(HttpStatus.OK);
 
             } catch (AccessDeniedException e) {
@@ -184,13 +185,13 @@ public class CasebookApplication implements Application {
     }
 
     private void setResponseHeaders() {
-        this.httpResponse.addHeader(WebConstants.SERVER_HEADER, WebConstants.SERVER_NAME_AND_VERSION);
-        this.httpResponse.addHeader(WebConstants.DATE_HEADER, new Date().toString());
+        this.httpResponse.addHeader(ApplicationConstants.SERVER_HEADER, ApplicationConstants.SERVER_NAME_AND_VERSION);
+        this.httpResponse.addHeader(ApplicationConstants.DATE_HEADER, new Date().toString());
 
         if (this.verifyResourceStatus()) {
-            this.httpResponse.addHeader(WebConstants.CONTENT_TYPE_HEADER, this.getContentType(this.httpRequest.getRequestUrl()));
-            this.httpResponse.addHeader(WebConstants.CONTENT_DISPOSITION_HEADER, WebConstants.CONTENT_DISPOSITION_VALUE_INLINE);
-            this.httpResponse.addHeader(WebConstants.CONTENT_LENGTH_HEADER, String.valueOf(this.httpResponse.getContent().length));
+            this.httpResponse.addHeader(ApplicationConstants.CONTENT_TYPE_HEADER, this.getContentType(this.httpRequest.getRequestUrl()));
+            this.httpResponse.addHeader(ApplicationConstants.CONTENT_DISPOSITION_HEADER, ApplicationConstants.CONTENT_DISPOSITION_VALUE_INLINE);
+            this.httpResponse.addHeader(ApplicationConstants.CONTENT_LENGTH_HEADER, String.valueOf(this.httpResponse.getContent().length));
         }
     }
 

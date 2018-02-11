@@ -21,7 +21,10 @@ public final class RequestHandlerLoader {
                 if (file.isDirectory()) {
                     scanRequestHandlers(file.getPath());
                 } else if (file.getName().endsWith(".class")) {
-                    requestHandlers.add(loadRequestHandlers(file));
+                    RequestHandler requestHandler = loadRequestHandlers(file);
+                    if(requestHandler != null) {
+                        requestHandlers.add(requestHandler);
+                    }
                 }
             }
         }
@@ -39,7 +42,7 @@ public final class RequestHandlerLoader {
             ClassLoader cl = new URLClassLoader(urls);
             Class<?> handlerClass =  cl.loadClass(className);
             if (RequestHandler.class.isAssignableFrom(handlerClass)) {
-                return (RequestHandler) handlerClass.getConstructor(String.class)
+                return (RequestHandler) handlerClass.getDeclaredConstructor(String.class)
                         .newInstance(WebConstants.ROOT_PATH);
             }
 

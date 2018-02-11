@@ -22,9 +22,6 @@ public class Server {
         this.serverSocket = new ServerSocket(this.port);
         this.serverSocket.setSoTimeout(WebConstants.SOCKET_TIMEOUT_MILLISECONDS);
 
-        //HttpSessionStorage sessionStorage = new HttpSessionStorageImpl();
-        //this.application.setSessionStorage(sessionStorage);
-
         while (true){
             try(Socket clientSocket = this.serverSocket.accept()) {
                 clientSocket.setSoTimeout(WebConstants.SOCKET_TIMEOUT_MILLISECONDS);
