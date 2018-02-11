@@ -1,8 +1,7 @@
 package javache;
 
 import java.io.File;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -11,45 +10,56 @@ import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-public final class RequestHandlerLoader {
-    public static Iterable<RequestHandler> scanRequestHandlers(String libDirectoryPath) {
-        Set<RequestHandler> requestHandlers = new HashSet<>();
-        File libDirectory = new File(libDirectoryPath);
+public class RequestHandlerLoader {
+    private Map<String, RequestHandler> requestHandlers;
 
-        if (libDirectory.exists() && libDirectory.isDirectory()) {
-            for (File file : libDirectory.listFiles()) {
-                if (file.isDirectory()) {
-                    scanRequestHandlers(file.getPath());
-                } else if (file.getName().endsWith(".class")) {
-                    RequestHandler requestHandler = loadRequestHandlers(file);
-                    if(requestHandler != null) {
-                        requestHandlers.add(requestHandler);
-                    }
-                }
-            }
-        }
-
-        return requestHandlers;
+    public RequestHandlerLoader(String libDirectoryPath) {
+        this.requestHandlers = new HashMap<>();
+        this.scanLibraries(libDirectoryPath);
     }
 
-    private static RequestHandler loadRequestHandlers(File file) {
-        String className = file.getPath().substring(0, file.getPath().lastIndexOf('.'))
-                .replace(WebConstants.HANDLERS_FOLDER + File.separator, "")
-                .replace(File.separatorChar, '.');
+    public Map<String, RequestHandler> getRequestHandlers() {
+        return Collections.unmodifiableMap(requestHandlers);
+    }
 
+    public void scanLibraries(String libDirectoryPath) {
         try {
-            URL[] urls = {new File(WebConstants.HANDLERS_FOLDER).toURI().toURL()};
-            ClassLoader cl = new URLClassLoader(urls);
-            Class<?> handlerClass =  cl.loadClass(className);
-            if (RequestHandler.class.isAssignableFrom(handlerClass)) {
-                return (RequestHandler) handlerClass.getDeclaredConstructor(String.class)
-                        .newInstance(WebConstants.ROOT_PATH);
-            }
+            File libDirectory = new File(libDirectoryPath);
 
-        } catch (MalformedURLException | ReflectiveOperationException e) {
+            if (libDirectory.exists() && libDirectory.isDirectory()) {
+                for (File file : libDirectory.listFiles()) {
+                    if (!file.getName().endsWith(".jar")) continue;
+
+                    JarFile library = new JarFile(file.getCanonicalPath());
+                    this.loadLibraries(library, file.getCanonicalPath());
+                }
+            }
+        }catch (IOException | ReflectiveOperationException e){
             e.printStackTrace();
         }
+    }
 
-        return null;
+    private void loadLibraries(JarFile library, String path) throws MalformedURLException, ReflectiveOperationException {
+        Enumeration<JarEntry> jarEntries = library.entries();
+        URL[] urls = {new URL("jar:file:" + path + "!/")};
+        ClassLoader cl = new URLClassLoader(urls);
+
+        while (jarEntries.hasMoreElements()) {
+            JarEntry currentFile = jarEntries.nextElement();
+
+            if (currentFile.isDirectory() || !currentFile.getName().endsWith(".class")) continue;
+
+            String className = currentFile.getName()
+                    .replace(".class", "")
+                    .replace("/", ".");
+            Class<?> handlerClass = cl.loadClass(className);
+            if (RequestHandler.class.isAssignableFrom(handlerClass)) {
+                RequestHandler requestHandler =  (RequestHandler) handlerClass.getDeclaredConstructor(String.class)
+                        .newInstance(WebConstants.ROOT_PATH);
+                this.requestHandlers.putIfAbsent(requestHandler.getClass().getSimpleName(), requestHandler);
+            }
+
+        }
+
     }
 }

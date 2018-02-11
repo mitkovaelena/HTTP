@@ -19,7 +19,4 @@ public final class Reader {
 
         return output.toString();
     }
-    public static byte[] readAllBytes(InputStream csInputStream) throws IOException {
-        return readAllLines(csInputStream).getBytes();
-    }
 }
