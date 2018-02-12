@@ -34,7 +34,7 @@ public class RequestHandlerLoader {
                     this.loadLibraries(library, file.getCanonicalPath());
                 }
             }
-        }catch (IOException | ReflectiveOperationException e){
+        } catch (IOException | ReflectiveOperationException e) {
             e.printStackTrace();
         }
     }
@@ -53,13 +53,19 @@ public class RequestHandlerLoader {
                     .replace(".class", "")
                     .replace("/", ".");
             Class<?> handlerClass = cl.loadClass(className);
-            if (RequestHandler.class.isAssignableFrom(handlerClass)) {
-                RequestHandler requestHandler =  (RequestHandler) handlerClass.getDeclaredConstructor(String.class)
+            if (AbstractRequestHandler.class.isAssignableFrom(handlerClass)) {
+                AbstractRequestHandler requestHandler = (AbstractRequestHandler) handlerClass
+                        .getDeclaredConstructor(String.class)
                         .newInstance(WebConstants.ROOT_PATH);
+
+                this.requestHandlers.putIfAbsent(requestHandler.getClass().getSimpleName(), requestHandler);
+            } else if (RequestHandler.class.isAssignableFrom(handlerClass)) {
+                RequestHandler requestHandler = (RequestHandler) handlerClass
+                        .getDeclaredConstructor()
+                        .newInstance();
+
                 this.requestHandlers.putIfAbsent(requestHandler.getClass().getSimpleName(), requestHandler);
             }
-
         }
-
     }
 }

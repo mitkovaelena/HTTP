@@ -34,7 +34,7 @@ public class ConnectionHandler extends Thread {
         }
     }
 
-    public InputStream getClientSocketInputStream() throws IOException {
+    private InputStream getClientSocketInputStream() throws IOException {
         if (this.cachedStringContent == null) {
             this.cachedStringContent = Reader.readAllLines(this.csInputStream);
         }
