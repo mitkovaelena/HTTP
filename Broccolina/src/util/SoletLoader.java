@@ -56,7 +56,6 @@ public class SoletLoader {
                 String className = je.getName()
                         .replace(".class", "")
                         .replace("/", ".");
-                System.out.println(className);
                 Class<?> handlerClass = cl.loadClass(className);
 
                 if (HttpSolet.class.isAssignableFrom(handlerClass)) {
